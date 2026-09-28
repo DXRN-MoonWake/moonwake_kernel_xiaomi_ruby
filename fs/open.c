@@ -1128,7 +1128,7 @@ long do_sys_open(int dfd, const char __user *filename, int flags, umode_t mode)
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 retry:
 #endif
-	fd = get_unused_fd_flags(how->flags);
+	fd = get_unused_fd_flags(flags);
 	if (fd >= 0) {
 		struct file *f = do_filp_open(dfd, tmp, &op);
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
