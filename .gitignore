@@ -140,3 +140,4 @@ drivers/kernelsu
 MoonWake-Private-*
 ksu.sh
 KernelSU/
+setup.sh
