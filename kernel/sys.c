@@ -646,7 +646,7 @@ long __sys_setresuid(uid_t ruid, uid_t euid, uid_t suid)
 	int retval;
 	kuid_t kruid, keuid, ksuid;
 
-#ifdef CONFIG_KSU_SUSFS
+#ifdef CONFIG_KSU
 	(void)ksu_handle_setresuid(ruid, euid, suid);
 #endif
 
