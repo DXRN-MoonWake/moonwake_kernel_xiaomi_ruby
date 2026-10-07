@@ -1374,9 +1374,14 @@ compress_again:
 		handle = zs_malloc(zram->mem_pool, comp_len,
 				GFP_NOIO | __GFP_HIGHMEM |
 				__GFP_MOVABLE);
-		if (handle)
+		if (!handle)
+			return -ENOMEM;
+
+		if (comp_len != PAGE_SIZE)
 			goto compress_again;
-		return -ENOMEM;
+
+		/* The page will be stored raw; only reacquire the per-CPU stream. */
+		zstrm = zcomp_stream_get(zram->comp);
 	}
 
 	alloced_pages = zs_get_total_pages(zram->mem_pool);
