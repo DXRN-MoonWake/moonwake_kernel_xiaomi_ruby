@@ -620,8 +620,12 @@ DECLARE_STATIC_KEY_FALSE(bpf_stats_enabled_key);
 	}								\
 	__ret; })
 
-#define BPF_PROG_RUN(prog, ctx)						\
-	__BPF_PROG_RUN(prog, ctx, bpf_dispatcher_nop_func)
+static inline u32 bpf_prog_run(const struct bpf_prog *prog, const void *ctx)
+{
+	return __BPF_PROG_RUN(prog, ctx, bpf_dispatcher_nop_func);
+}
+
+#define BPF_PROG_RUN bpf_prog_run
 
 /*
  * Use in preemptible and therefore migratable context to make sure that
@@ -711,7 +715,7 @@ static inline void bpf_restore_data_end(
 	cb->data_end = saved_data_end;
 }
 
-static inline u8 *bpf_skb_cb(struct sk_buff *skb)
+static inline u8 *bpf_skb_cb(const struct sk_buff *skb)
 {
 	/* eBPF programs may read/write skb->cb[] area to transfer meta
 	 * data between tail calls. Since this also needs to work with
@@ -732,8 +736,9 @@ static inline u8 *bpf_skb_cb(struct sk_buff *skb)
 
 /* Must be invoked with migration disabled */
 static inline u32 __bpf_prog_run_save_cb(const struct bpf_prog *prog,
-					 struct sk_buff *skb)
+					 const void *ctx)
 {
+	const struct sk_buff *skb = ctx;
 	u8 *cb_data = bpf_skb_cb(skb);
 	u8 cb_saved[BPF_SKB_CB_LEN];
 	u32 res;
@@ -1327,7 +1332,10 @@ struct bpf_sockopt_kern {
 	s32		level;
 	s32		optname;
 	s32		optlen;
-	s32		retval;
+	/* for retval in struct bpf_cg_run_ctx */
+	struct task_struct *current_task;
+	/* Temporary "register" for indirect stores to ppos. */
+	u64		tmp_reg;
 };
 
 int copy_bpf_fprog_from_user(struct sock_fprog *dst, sockptr_t src, int len);

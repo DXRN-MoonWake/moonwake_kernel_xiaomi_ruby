@@ -36,6 +36,7 @@ struct audit_context;
 struct backing_dev_info;
 struct bio_list;
 struct blk_plug;
+struct bpf_run_ctx;
 struct cfs_rq;
 struct fs_struct;
 struct futex_pi_state;
@@ -1348,7 +1349,12 @@ struct task_struct {
 	struct mutex			futex_exit_mutex;
 #endif
 
+#ifdef CONFIG_BPF_SYSCALL
+	/* Used for BPF run context. */
+	ANDROID_KABI_USE(7, struct bpf_run_ctx *bpf_ctx);
+#else
 	ANDROID_KABI_RESERVE(7);
+#endif
 	ANDROID_KABI_RESERVE(8);
 #ifdef CONFIG_MTK_TASK_TURBO
 	unsigned short turbo:1;

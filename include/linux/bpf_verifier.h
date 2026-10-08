@@ -61,6 +61,8 @@ struct bpf_reg_state {
 
 		/* Max size from any of the above. */
 		unsigned long raw;
+
+		u32 subprogno; /* for PTR_TO_FUNC */
 	};
 	/* Fixed part of pointer offset, pointer types only */
 	s32 off;
@@ -176,6 +178,17 @@ struct bpf_reference_state {
 	 * is used purely to inform the user of a reference leak.
 	 */
 	int insn_idx;
+	/* There can be a case like:
+	 * main (frame 0)
+	 *  cb (frame 1)
+	 *   func (frame 3)
+	 *    cb (frame 4)
+	 * Hence for frame 4, if callback_ref just stored boolean, it would be
+	 * impossible to distinguish nested callback refs. Hence store the
+	 * frameno and compare that to callback_ref in check_reference_leak when
+	 * exiting a callback function.
+	 */
+	int callback_ref;
 };
 
 /* state of the program:
@@ -194,6 +207,8 @@ struct bpf_func_state {
 	 * zero == main subprog
 	 */
 	u32 subprogno;
+
+	bool in_callback_fn;
 
 	/* The following fields should be last. See copy_func_state() */
 	int acquired_refs;
@@ -268,6 +283,7 @@ struct bpf_verifier_state {
 	u32 insn_idx;
 	u32 curframe;
 	u32 active_spin_lock;
+	u32 callback_unroll_depth;
 	bool speculative;
 
 	/* first and last insn idx of this verifier state */
@@ -358,6 +374,7 @@ struct bpf_insn_aux_data {
 	/* below fields are initialized once */
 	unsigned int orig_idx; /* original instruction index */
 	bool prune_point;
+	bool calls_callback;
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */

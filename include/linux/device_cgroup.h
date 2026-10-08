@@ -27,7 +27,7 @@ static inline int devcgroup_check_permission(short type, u32 major, u32 minor,
 	int rc = BPF_CGROUP_RUN_PROG_DEVICE_CGROUP(type, major, minor, access);
 
 	if (rc)
-		return -EPERM;
+		return rc;
 
 	return __devcgroup_check_permission(type, major, minor, access);
 }
