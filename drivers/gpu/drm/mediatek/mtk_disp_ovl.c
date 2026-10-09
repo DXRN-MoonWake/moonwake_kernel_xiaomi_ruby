@@ -793,6 +793,23 @@ static void mtk_ovl_config(struct mtk_ddp_comp *comp,
 	mtk_ovl_golden_setting(comp, cfg, handle);
 }
 
+static void mtk_ovl_first_cfg(struct mtk_ddp_comp *comp,
+			    struct mtk_ddp_config *cfg, struct cmdq_pkt *handle)
+{
+	if (!IS_ENABLED(CONFIG_MACH_MT6877))
+		return;
+
+	/*
+	 * LK handoff skips config() and start(). Apply the same FIFO, SMI and
+	 * burst settings used by the normal enable path before userspace adds
+	 * layers. The first-config packet already waits for frame completion;
+	 * neither operation resets the engine or changes the retained logo
+	 * layer's address.
+	 */
+	mtk_ovl_config(comp, cfg, handle);
+	mtk_ovl_start(comp, handle);
+}
+
 static void mtk_ovl_layer_on(struct mtk_ddp_comp *comp, unsigned int idx,
 			     unsigned int ext_idx, struct cmdq_pkt *handle)
 {
@@ -3636,6 +3653,7 @@ mtk_ovl_config_trigger(struct mtk_ddp_comp *comp, struct cmdq_pkt *pkt,
 
 static const struct mtk_ddp_comp_funcs mtk_disp_ovl_funcs = {
 	.config = mtk_ovl_config,
+	.first_cfg = mtk_ovl_first_cfg,
 	.start = mtk_ovl_start,
 	.stop = mtk_ovl_stop,
 #if 0
