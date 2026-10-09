@@ -429,14 +429,9 @@ static int mtk_rdma_io_cmd(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle,
 
 static void mtk_rdma_start(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
 {
-	int ret;
 	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
 	const struct mtk_disp_rdma_data *data = rdma->data;
 	bool en = 1;
-
-	ret = pm_runtime_get_sync(comp->dev);
-	if (ret < 0)
-		DRM_ERROR("Failed to enable power domain: %d\n", ret);
 
 	mtk_ddp_write_mask(comp, MATRIX_INT_MTX_SEL_DEFAULT,
 			   DISP_REG_RDMA_SIZE_CON_0, 0xff0000, handle);
@@ -453,7 +448,6 @@ static void mtk_rdma_start(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
 
 static void mtk_rdma_stop(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
 {
-	int ret;
 	bool en = 0;
 	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
 	const struct mtk_disp_rdma_data *data = rdma->data;
@@ -467,9 +461,6 @@ static void mtk_rdma_stop(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
 		data->sodi_config(comp->mtk_crtc->base.dev, comp->id, handle,
 				  &en);
 
-	ret = pm_runtime_put(comp->dev);
-	if (ret < 0)
-		DRM_ERROR("Failed to disable power domain: %d\n", ret);
 }
 
 /* TODO RDMA1, wrot sram */
@@ -1244,9 +1235,15 @@ int mtk_rdma_analysis(struct mtk_ddp_comp *comp)
 
 static void mtk_rdma_prepare(struct mtk_ddp_comp *comp)
 {
+	int ret;
 #if defined(CONFIG_DRM_MTK_SHADOW_REGISTER_SUPPORT)
 	struct mtk_disp_rdma *rdma = comp_to_rdma(comp);
 #endif
+
+	/* LK adoption prepares the running block without calling start(). */
+	ret = pm_runtime_get_sync(comp->dev);
+	if (ret < 0)
+		DRM_ERROR("Failed to enable power domain: %d\n", ret);
 
 	mtk_ddp_comp_clk_prepare(comp);
 
@@ -1272,7 +1269,14 @@ static void mtk_rdma_prepare(struct mtk_ddp_comp *comp)
 
 static void mtk_rdma_unprepare(struct mtk_ddp_comp *comp)
 {
+	int ret;
+
 	mtk_ddp_comp_clk_unprepare(comp);
+
+	/* Keep the reference until stop commands and clock teardown finish. */
+	ret = pm_runtime_put(comp->dev);
+	if (ret < 0)
+		DRM_ERROR("Failed to disable power domain: %d\n", ret);
 }
 
 static unsigned int rdma_fmt_convert(struct mtk_disp_rdma *rdma,

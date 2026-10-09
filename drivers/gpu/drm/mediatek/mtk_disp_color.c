@@ -3208,11 +3208,6 @@ int mtk_drm_ioctl_pq_set_window(struct drm_device *dev, void *data,
 static void mtk_color_start(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
 {
 	//struct mtk_disp_color *color = comp_to_color(comp);
-	int ret;
-
-	ret = pm_runtime_get_sync(comp->dev);
-	if (ret < 0)
-		DRM_ERROR("Failed to enable power domain: %d\n", ret);
 
 	DpEngine_COLORonInit(comp, handle);
 
@@ -3231,15 +3226,6 @@ static void mtk_color_start(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
 	cmdq_pkt_write(handle, comp->cmdq_base,
 		       comp->regs_pa + DISP_COLOR_START(color), 0x1, ~0);
 	*/
-}
-
-static void mtk_color_stop(struct mtk_ddp_comp *comp, struct cmdq_pkt *handle)
-{
-	int ret;
-
-	ret = pm_runtime_put(comp->dev);
-	if (ret < 0)
-		DRM_ERROR("Failed to disable power domain: %d\n", ret);
 }
 
 static void mtk_color_bypass(struct mtk_ddp_comp *comp, int bypass,
@@ -3410,9 +3396,15 @@ static void ddp_color_restore(struct mtk_ddp_comp *comp)
 
 static void mtk_color_prepare(struct mtk_ddp_comp *comp)
 {
+	int ret;
 #if defined(CONFIG_DRM_MTK_SHADOW_REGISTER_SUPPORT)
 	struct mtk_disp_color *color = comp_to_color(comp);
 #endif
+
+	/* LK adoption prepares the running block without calling start(). */
+	ret = pm_runtime_get_sync(comp->dev);
+	if (ret < 0)
+		DRM_ERROR("Failed to enable power domain: %d\n", ret);
 
 	mtk_ddp_comp_clk_prepare(comp);
 	atomic_set(&g_color_is_clock_on[index_of_color(comp->id)], 1);
@@ -3443,6 +3435,7 @@ static void mtk_color_prepare(struct mtk_ddp_comp *comp)
 static void mtk_color_unprepare(struct mtk_ddp_comp *comp)
 {
 	unsigned long flags;
+	int ret;
 
 	DDPINFO("%s @ %d......... spin_lock_irqsave ++ ", __func__, __LINE__);
 	spin_lock_irqsave(&g_color_clock_lock, flags);
@@ -3453,6 +3446,11 @@ static void mtk_color_unprepare(struct mtk_ddp_comp *comp)
 	// backup DISP_COLOR_CFG_MAIN register
 	ddp_color_backup(comp);
 	mtk_ddp_comp_clk_unprepare(comp);
+
+	/* Keep the reference until register backup and clock teardown finish. */
+	ret = pm_runtime_put(comp->dev);
+	if (ret < 0)
+		DRM_ERROR("Failed to disable power domain: %d\n", ret);
 }
 
 void mtk_color_first_cfg(struct mtk_ddp_comp *comp,
@@ -3465,7 +3463,6 @@ static const struct mtk_ddp_comp_funcs mtk_disp_color_funcs = {
 	.config = mtk_color_config,
 	.first_cfg = mtk_color_first_cfg,
 	.start = mtk_color_start,
-	.stop = mtk_color_stop,
 	.bypass = mtk_color_bypass,
 	.user_cmd = mtk_color_user_cmd,
 	.prepare = mtk_color_prepare,
