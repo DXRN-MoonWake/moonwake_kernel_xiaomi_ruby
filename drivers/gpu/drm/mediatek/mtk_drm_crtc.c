@@ -1803,10 +1803,9 @@ static void _mtk_crtc_lye_addon_module_disconnect(
 	if (mtk_crtc->is_dual_pipe) {
 		addon_data_dual = mtk_addon_get_scenario_data_dual
 			(__func__, crtc, lye_state->scn[drm_crtc_index(crtc)]);
-	}
 
-	if (!addon_data_dual) {
-		return;
+		if (!addon_data_dual)
+			return;
 	}
 
 	for (i = 0; i < addon_data->module_num; i++) {
