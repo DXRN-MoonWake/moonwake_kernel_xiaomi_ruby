@@ -17,7 +17,7 @@ Redmi Note 12 pro 5G (ruby) kernel specify for powersave
 
 ### Option 1: Compile and go (This way to compile my kernel directly from my source)
 
-1. Fork [DPR-MoonWake/KernelAction](https://github.com/DPR-MoonWake/KernelAction) repo
+1. Fork [DXRN-MoonWake/KernelAction](https://github.com/DXRN-MoonWake/KernelAction) repo
 2. Enable action build in Actions tab
 3. Click on `Build MoonWake Kernel`
 4. Click on `Run workflow`
