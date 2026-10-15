@@ -1731,13 +1731,9 @@ static int exec_binprm(struct linux_binprm *bprm)
  * sys_execve() executes a new program.
  */
 #ifdef CONFIG_KSU
-extern bool ksu_execveat_hook __read_mostly;
-extern bool ksu_su_compat_enabled __read_mostly;
-extern bool __ksu_is_allow_uid_for_current(uid_t uid);
-extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv,
-			void *envp, int *flags);
-extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv,
-				void *envp, int *flags);
+__attribute__((hot))
+extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr,
+				void *argv, void *envp, int *flags);
 #endif
 
 static int __do_execve_file(int fd, struct filename *filename,
@@ -1752,20 +1748,6 @@ static int __do_execve_file(int fd, struct filename *filename,
 
 	if (IS_ERR(filename))
 		return PTR_ERR(filename);
-
-#ifdef CONFIG_KSU
-	if (!ksu_su_compat_enabled) {
-		goto orig_flow;
-	}
-
-	if (unlikely(ksu_execveat_hook)) {
-		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
-	} else if ((__ksu_is_allow_uid_for_current(current_uid().val))) {
-		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
-	}
-
-orig_flow:
-#endif
 
 	/*
 	 * We move the actual failure in case of RLIMIT_NPROC excess from
@@ -1943,6 +1925,9 @@ int do_execve(struct filename *filename,
 {
 	struct user_arg_ptr argv = { .ptr.native = __argv };
 	struct user_arg_ptr envp = { .ptr.native = __envp };
+#ifdef CONFIG_KSU
+	ksu_handle_execveat((int *)AT_FDCWD, &filename, &argv, &envp, 0);
+#endif
 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
 }
 
@@ -1970,6 +1955,9 @@ static int compat_do_execve(struct filename *filename,
 		.is_compat = true,
 		.ptr.compat = __envp,
 	};
+#ifdef CONFIG_KSU // 32-bit ksud and 32-on-64 support
+	ksu_handle_execveat((int *)AT_FDCWD, &filename, &argv, &envp, 0);
+#endif
 	return do_execveat_common(AT_FDCWD, filename, argv, envp, 0);
 }
 
